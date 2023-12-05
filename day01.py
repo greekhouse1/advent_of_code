@@ -3,7 +3,7 @@ import string
 from typing import List
 
 
-FILE = Path() / "docs" / "day1.txt"
+FILE = Path() / "docs" / "day01.txt"
 
 DIGITS = set(string.digits)
 
