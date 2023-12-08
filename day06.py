@@ -5,7 +5,7 @@ from functools import total_ordering
 from pathlib import Path
 
 
-FILE = Path() / "docs" / "day07_test.txt"
+FILE = Path() / "docs" / "day07.txt"
 
 
 class HandType(IntEnum):
@@ -21,7 +21,7 @@ class HandType(IntEnum):
 @dataclass
 @total_ordering
 class Hand:
-    order = "23456789TJQKA"
+    order = "J23456789TQKA"
     value: str
     hand_type: HandType
 
@@ -29,23 +29,36 @@ class Hand:
         self.value = value
         self.bet = bet
 
-        c = Counter(self.value)
-        if len(c) == 1:
+        if "J" not in self.value:
+            self.hand_type = self.get_hand_type(Counter(self.value))
+        elif self.value == "JJJJJ":
             self.hand_type = HandType.FIVE_OF_A_KIND
+        else:
+            possible_hand_types = []
+            non_joker = [x for x in self.value if x != "J"]
+            for x in non_joker:
+                new_value = self.value.replace("J", x)
+                possible_hand_types.append(self.get_hand_type(Counter(new_value)))
+                self.hand_type = max(possible_hand_types)
+
+
+    def get_hand_type(self, c: Counter):
+        if len(c) == 1:
+            return HandType.FIVE_OF_A_KIND
         elif len(c) == 2:
             if max(c.values()) == 4:
-                self.hand_type = HandType.FOUR_OF_A_KIND
+                return HandType.FOUR_OF_A_KIND
             else:
-                self.hand_type = HandType.FULL_HOUSE
+                return HandType.FULL_HOUSE
         elif len(c) == 3:
             if max(c.values()) == 3:
-                self.hand_type = HandType.THREE_OF_A_KIND
+                return HandType.THREE_OF_A_KIND
             else:
-                self.hand_type = HandType.TWO_PAIR
+                return HandType.TWO_PAIR
         elif len(c) == 4:
-            self.hand_type = HandType.ONE_PAIR
+            return HandType.ONE_PAIR
         else:
-            self.hand_type = HandType.HIGH_CARD
+            return HandType.HIGH_CARD
 
     def to_tuple(self):
         return (self.hand_type,) + tuple(self.order.index(x) for x in self.value)
@@ -68,4 +81,4 @@ winnings = 0
 for idx, hand in enumerate(hands):
     winnings += (idx + 1) * hand.bet
 
-print(f"1: {winnings}")
+print(f"2: {winnings}")
