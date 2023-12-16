@@ -35,6 +35,20 @@ class Node:
         return True
 
 
+box_lu = {
+    "|": "│",
+    "-": "─",
+    "L": "└",
+    "J": "┘",
+    "7": "┐",
+    "F": "┌",
+    ".": " ",
+    "I": "\033[92mI\033[0m",
+    "O": " ",
+    "S": "S",
+}
+
+
 @dataclass
 class Grid:
     grid: List[List[Node]]
@@ -45,7 +59,7 @@ class Grid:
 
     def display(self):
         for row in self.grid:
-            print("".join(x.char for x in row))
+            print("".join(box_lu[x.char] for x in row))
 
     def _get_used(self):
         used = set()
