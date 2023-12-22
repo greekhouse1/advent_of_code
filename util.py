@@ -31,3 +31,9 @@ NORTH = Point(-1, 0)
 SOUTH = Point(1, 0)
 WEST = Point(0, -1)
 EAST = Point(0, 1)
+
+DIRECTIONS = (NORTH, EAST, SOUTH, WEST)
+
+
+def opposite(p: Point):
+    return Point(-p.x, -p.y)
