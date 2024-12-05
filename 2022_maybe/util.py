@@ -17,6 +17,15 @@ class Point:
     def __add__(self, other: "Point"):
         return Point(self.x + other.x, self.y + other.y)
 
+    def __sub__(self, other: "Point"):
+        return Point(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, other: int):
+        return Point(other * self.x, other * self.y)
+
+    def __rmul__(self, other: int):
+        return Point(other * self.x, other * self.y)
+
     def __eq__(self, other: "Point"):
         return self.x == other.x and self.y == other.y
 
@@ -25,6 +34,10 @@ class Point:
 
     def __hash__(self) -> int:
         return hash(self.x + 12345 * self.y)
+
+    @property
+    def tuple(self):
+        return (self.x, self.y)
 
 
 NORTH = Point(-1, 0)
