@@ -1,3 +1,4 @@
+import copy
 import itertools
 import re
 
@@ -179,7 +180,7 @@ def p4b(fn):
 
 
 ###############################################################################
-#################################### Day 4 ####################################
+#################################### Day 5 ####################################
 ###############################################################################
 
 
@@ -242,5 +243,183 @@ def p5b(fn):
     print(total)
 
 
+###############################################################################
+#################################### Day 6 ####################################
+###############################################################################
+
+DIRECTIONS = [
+    (1, 0),
+    (-1, 0),
+    (0, 1),
+    (0, -1),
+    (1, 1),
+    (1, -1),
+    (-1, 1),
+    (-1, -1),
+]
+
+
+def get_start(grid):
+    for idx, row in enumerate(grid):
+        jdx = row.find("^")
+        if jdx >= 0:
+            return idx, jdx
+
+
+TURN_RIGHT = {
+    (1, 0): (0, -1),
+    (-1, 0): (0, 1),
+    (0, 1): (1, 0),
+    (0, -1): (-1, 0),
+}
+
+
+def add_tuple(a, b):
+    return (a[0] + b[0], a[1] + b[1])
+
+
+def subtract_tuple(a, b):
+    return (a[0] - b[0], a[1] - b[1])
+
+
+def on_grid(x, y, rows, cols):
+    return 0 <= x < rows and 0 <= y < cols
+
+
+def p6a(fn):
+    with open(fn) as f:
+        grid = [x.rstrip() for x in f.readlines()]
+
+    rows, cols = len(grid), len(grid[0])
+
+    position = get_start(grid)
+    orientation = (-1, 0)
+    visited = set()
+    while True:
+        if not on_grid(*position, rows, cols):
+            break
+        if grid[position[0]][position[1]] == "#":
+            position = subtract_tuple(position, orientation)
+            orientation = TURN_RIGHT[orientation]
+            continue
+        visited.add(position)
+        position = add_tuple(position, orientation)
+
+    # print(len(visited))
+    return grid, visited
+
+
+def expand_path(grid, visited):
+    expanded = set()
+    for v in visited:
+        if grid[v[0]][v[1]] != "^":
+            expanded.add(v)
+        for dir in TURN_RIGHT:
+            v2 = add_tuple(v, dir)
+            if on_grid(*v2, len(grid), len(grid[0])) and grid[v2[0]][v2[1]] not in "#^":
+                expanded.add(v2)
+    return expanded
+
+
+def has_loop(grid):
+    rows, cols = len(grid), len(grid[0])
+
+    position = get_start(grid)
+    orientation = (-1, 0)
+    visited = set()
+    while True:
+        if not on_grid(*position, rows, cols):
+            return False
+        if grid[position[0]][position[1]] == "#":
+            position = subtract_tuple(position, orientation)
+            orientation = TURN_RIGHT[orientation]
+            continue
+        if (position, orientation) in visited:
+            return True
+        visited.add((position, orientation))
+        position = add_tuple(position, orientation)
+
+    assert False, "Unreachable"
+
+
+def p6b(fn):
+    grid, visited = p6a(fn)
+    start = get_start(grid)
+
+    looped = 0
+    for p in visited:
+        if p == start:
+            continue
+        new_grid = copy.deepcopy(grid)
+        new_grid[p[0]] = "".join(
+            "#" if i == p[1] else grid[p[0]][i] for i in range(len(grid[0]))
+        )
+        if has_loop(new_grid):
+            looped += 1
+    print(looped)
+
+
+###############################################################################
+#################################### Day 7 ####################################
+###############################################################################
+
+
+def read7(fn):
+    data = []
+
+    with open(fn) as f:
+        for line in f:
+            line = line.rstrip().replace(":", "")
+            data.append(list(map(int, line.split())))
+    return data
+
+
+def check7(values):
+    x, y, *rest = values
+    a = x + y
+    b = x * y
+    if not rest:
+        yield a
+        yield b
+        return
+
+    yield from check7([a] + rest)
+    yield from check7([b] + rest)
+
+
+def p7a(fn):
+    data = read7(fn)
+
+    total = 0
+    for calibration in data:
+        target, *values = calibration
+        if any(x == target for x in check7(values)):
+            total += target
+    print(total)
+
+
+def check7b(values):
+    x, y, *rest = values
+    a = x + y
+    b = x * y
+    c = int(str(x) + str(y))
+    if not rest:
+        yield from (a, b, c)
+        return
+    for v in (a, b, c):
+        yield from check7b([v] + rest)
+
+
+def p7b(fn):
+    data = read7(fn)
+
+    total = 0
+    for calibration in data:
+        target, *values = calibration
+        if any(x == target for x in check7b(values)):
+            total += target
+    print(total)
+
+
 if __name__ == "__main__":
-    p5b("data/day5.txt")
+    p7b("data/day7.txt")
