@@ -1,12 +1,48 @@
 import copy
+from dataclasses import dataclass
+from functools import total_ordering
 import itertools
 import re
 
 from collections import Counter, defaultdict
+import time
 from typing import List, Tuple
 
+
+@total_ordering
+@dataclass
+class Point:
+    x: int
+    y: int
+
+    def __add__(self, other: "Point"):
+        return Point(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other: "Point"):
+        return Point(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, other: int):
+        return Point(other * self.x, other * self.y)
+
+    def __rmul__(self, other: int):
+        return Point(other * self.x, other * self.y)
+
+    def __eq__(self, other: "Point"):
+        return self.x == other.x and self.y == other.y
+
+    def __lt__(self, other: "Point"):
+        return (self.x, self.y) < (other.x, other.y)
+
+    def __hash__(self) -> int:
+        return hash(self.x + 12345 * self.y)
+
+    @property
+    def tuple(self):
+        return (self.x, self.y)
+
+
 ###############################################################################
-#################################### Day 2 ####################################
+#################################### Day 1 ####################################
 ###############################################################################
 
 
@@ -400,13 +436,11 @@ def p7a(fn):
 
 def check7b(values):
     x, y, *rest = values
-    a = x + y
-    b = x * y
-    c = int(str(x) + str(y))
+    methods = [x + y, x * y, int(str(x) + str(y))]
     if not rest:
-        yield from (a, b, c)
+        yield from methods
         return
-    for v in (a, b, c):
+    for v in methods:
         yield from check7b([v] + rest)
 
 
@@ -421,5 +455,71 @@ def p7b(fn):
     print(total)
 
 
+###############################################################################
+#################################### Day 8 ####################################
+###############################################################################
+
+
+def in_grid(p: Point, rows: int, cols: int):
+    return 0 <= p.x < rows and 0 <= p.y < cols
+
+
+def p8a(fn):
+    with open(fn) as f:
+        grid = [x.rstrip() for x in f.readlines()]
+        rows = len(grid)
+        cols = len(grid[0])
+
+    frequencies = defaultdict(list)
+
+    for idx, row in enumerate(grid):
+        for jdx, c in enumerate(row):
+            if c == ".":
+                continue
+            frequencies[c].append(Point(idx, jdx))
+
+    antinodes = set()
+
+    for freq in frequencies.values():
+        for p1, p2 in itertools.combinations(freq, 2):
+            for x in 2 * p1 - p2, 2 * p2 - p1:
+                if in_grid(x, rows, cols):
+                    antinodes.add(x)
+
+    print(len(antinodes))
+
+def p8b(fn):
+    with open(fn) as f:
+        grid = [x.rstrip() for x in f.readlines()]
+        rows = len(grid)
+        cols = len(grid[0])
+
+    frequencies = defaultdict(list)
+
+    for idx, row in enumerate(grid):
+        for jdx, c in enumerate(row):
+            if c == ".":
+                continue
+            frequencies[c].append(Point(idx, jdx))
+
+    antinodes = set()
+
+    for freq in frequencies.values():
+        for p1, p2 in itertools.combinations(freq, 2):
+            for point, dir in (
+                (p1, p1 - p2),
+                (p2, p2 - p1),
+            ):
+                for k in range(500):
+                    x = point + k * dir
+                    if not in_grid(x, rows, cols):
+                        break
+                    antinodes.add(x)
+
+    print(len(antinodes))
+
+
 if __name__ == "__main__":
-    p7b("data/day7.txt")
+    t0 = time.time()
+    p8b("data/day8.txt")
+    print(f"Time: {time.time() - t0}")
