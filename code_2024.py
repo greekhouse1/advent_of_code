@@ -488,6 +488,7 @@ def p8a(fn):
 
     print(len(antinodes))
 
+
 def p8b(fn):
     with open(fn) as f:
         grid = [x.rstrip() for x in f.readlines()]
@@ -519,7 +520,142 @@ def p8b(fn):
     print(len(antinodes))
 
 
+###############################################################################
+#################################### Day 9 ####################################
+###############################################################################
+
+
+def read9(fn):
+    with open(fn) as f:
+        disk = f.read().strip()
+
+    unpacked = []
+    cur_idx = 0
+    blank = True
+
+    for c in disk:
+        blank = not blank
+        if blank:
+            for _ in range(int(c)):
+                unpacked.append(".")
+        else:
+            for _ in range(int(c)):
+                unpacked.append(cur_idx)
+            cur_idx += 1
+
+    return unpacked
+
+
+def p9a(fn):
+
+    unpacked = read9(fn)
+    # print("".join(map(str, unpacked)))
+    front_idx = 0
+    back_idx = len(unpacked) - 1
+
+    while front_idx < back_idx:
+        if unpacked[front_idx] != ".":
+            front_idx += 1
+            continue
+        if unpacked[back_idx] == ".":
+            back_idx -= 1
+            continue
+
+        unpacked[front_idx], unpacked[back_idx] = (
+            unpacked[back_idx],
+            unpacked[front_idx],
+        )
+        front_idx += 1
+        back_idx -= 1
+
+    # print("".join(map(str, unpacked)))
+    score = 0
+    for idx, val in enumerate(unpacked):
+        try:
+            score += idx * val
+        except TypeError:
+            break
+    print(score)
+
+
+def read9b(fn):
+    with open(fn) as f:
+        disk = f.read().strip()
+
+    packed = []
+    cur_idx = 0
+    blank = True
+
+    for c in disk:
+        blank = not blank
+        if blank:
+            packed.append((".", int(c)))
+        else:
+            packed.append((cur_idx, int(c)))
+            cur_idx += 1
+
+    return packed
+
+
+def unpack(packed):
+    s = list()
+    for val, count in packed:
+        s += [val] * count
+
+    return s
+
+
+def find_insertable(marker, packed):
+    count = packed[marker][1]
+
+    idx = len(packed) - 1
+    while idx > marker:
+        id, idx_count = packed[idx]
+        if id == ".":
+            idx -= 1
+            continue
+        if idx_count <= count:
+            return idx
+        idx -= 1
+    return None
+
+
+def p9b(fn):
+
+    packed = read9b(fn)
+    # print(packed)
+
+    marker = 0
+    while marker < len(packed):
+        id, count = packed[marker]
+        if id != ".":
+            marker += 1
+            continue
+
+        idx = find_insertable(marker, packed)
+        if idx is None:
+            marker += 1
+            continue
+
+        new_id, new_count = packed[idx]
+        packed[idx] = (".", new_count)
+        packed[marker] = (new_id, new_count)
+        if new_count != count:
+            packed.insert(marker + 1, (".", count - new_count))
+        marker += 1
+
+    unpacked = unpack(packed)
+    # print(unpacked)
+    score = 0
+    for idx, val in enumerate(unpacked):
+        try:
+            score += idx * val
+        except TypeError:
+            continue
+    print(score)
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p8b("data/day8.txt")
+    p9b("data/day9.txt")
     print(f"Time: {time.time() - t0}")
