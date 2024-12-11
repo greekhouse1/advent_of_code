@@ -40,6 +40,20 @@ class Point:
     def tuple(self):
         return (self.x, self.y)
 
+    def in_grid(self, rows, cols):
+        return 0 <= self.x < rows and 0 <= self.y < cols
+
+    def orthogonal(self, rows, cols):
+        for i in (self.x - 1, self.x + 1):
+            p = Point(i, self.y)
+            if p.in_grid(rows, cols):
+                yield p
+
+        for j in (self.y - 1, self.y + 1):
+            p = Point(self.x, j)
+            if p.in_grid(rows, cols):
+                yield p
+
 
 ###############################################################################
 #################################### Day 1 ####################################
@@ -655,7 +669,74 @@ def p9b(fn):
     print(score)
 
 
+###############################################################################
+#################################### Day 10 ####################################
+###############################################################################
+
+
+def read10(fn):
+    mat = []
+    with open(fn) as f:
+        for row in f:
+            mat.append(list(map(int, row.strip())))
+
+    return mat
+
+
+def get_zeros(mat):
+    for i in range(len(mat)):
+        for j in range(len(mat[0])):
+            if mat[i][j] == 0:
+                yield Point(i, j)
+
+
+def p10a(fn):
+    mat = read10(fn)
+    rows = len(mat)
+    cols = len(mat[0])
+
+    starting_points = list(get_zeros(mat))
+
+    reachable = {x: {x} for x in starting_points}
+    print(reachable)
+    for target in range(1, 10):
+        new_reachable = {x: set() for x in starting_points}
+        for start, current_list in reachable.items():
+            for p in current_list:
+                for neighbor in p.orthogonal(rows, cols):
+                    if mat[neighbor.x][neighbor.y] == target:
+                        new_reachable[start].add(neighbor)
+
+        reachable = new_reachable
+
+    print(sum(len(x) for x in reachable.values()))
+
+
+def p10b(fn):
+    mat = read10(fn)
+    rows = len(mat)
+    cols = len(mat[0])
+
+    starting_points = list(get_zeros(mat))
+
+    reachable = {x: Counter([x]) for x in starting_points}
+    for target in range(1, 10):
+        new_reachable = {x: Counter() for x in starting_points}
+        for start, current_counter in reachable.items():
+            for p, count in current_counter.items():
+                for neighbor in p.orthogonal(rows, cols):
+                    if mat[neighbor.x][neighbor.y] == target:
+                        new_reachable[start][neighbor] += count
+
+        reachable = new_reachable
+
+    total = 0
+    for x in reachable.values():
+        total += sum(x.values())
+    print(total)
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p9b("data/day9.txt")
+    p10b("data/day10.txt")
     print(f"Time: {time.time() - t0}")
