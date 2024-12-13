@@ -8,6 +8,8 @@ from collections import Counter, defaultdict
 import time
 from typing import List, Tuple
 
+import numpy as np
+
 
 @total_ordering
 @dataclass
@@ -923,7 +925,99 @@ def p12b(fn):
     print(total)
 
 
+###############################################################################
+#################################### Day 12 ###################################
+###############################################################################
+
+
+def read13(fn):
+    systems = []
+    with open(fn) as f:
+        for line in f:
+            if "A" in line or "B" in line:
+                s1 = line.split(":")[1]
+                x, y = s1.strip().split(",")
+                x = int(x[2:])
+                y = int(y[2:])
+                if "A" in line:
+                    a = (x, y)
+                else:
+                    b = (x, y)
+            if "Prize" in line:
+                mat = np.array([[a[0], b[0]], [a[1], b[1]]])
+
+                s1 = line.split(":")[1]
+                x, y = s1.strip().split(",")
+                x = int(x.strip()[2:])
+                y = int(y.strip()[2:])
+                target = np.array([x, y])
+                systems.append((mat, target))
+
+    return systems
+
+
+def read13b(fn):
+    systems = []
+    with open(fn) as f:
+        for line in f:
+            if "A" in line or "B" in line:
+                s1 = line.split(":")[1]
+                x, y = s1.strip().split(",")
+                x = int(x[2:])
+                y = int(y[2:])
+                if "A" in line:
+                    a = (x, y)
+                else:
+                    b = (x, y)
+            if "Prize" in line:
+                mat = np.array([[a[0], b[0]], [a[1], b[1]]])
+
+                s1 = line.split(":")[1]
+                x, y = s1.strip().split(",")
+                x = int(x.strip()[2:]) + 10000000000000
+                y = int(y.strip()[2:]) + 10000000000000
+                target = np.array([x, y])
+                systems.append((mat, target))
+
+    return systems
+
+
+def p13a(fn):
+    systems = read13(fn)
+
+    val = 0
+
+    for mat, target in systems:
+        sol = np.linalg.solve(mat, target)
+        if any(x > 100 for x in sol):
+            continue
+        int_vec = np.array([int(sol[0] + 0.5), int(sol[1] + 0.5)])
+        approx_target = np.matmul(mat, int_vec.T)
+
+        if (approx_target == target).all():
+            val += 3 * int_vec[0] + int_vec[1]
+
+    print(val)
+
+
+def p13b(fn):
+    systems = read13b(fn)
+
+    val = 0
+
+    for mat, target in systems:
+        sol = np.linalg.solve(mat, target)
+
+        int_vec = np.array([int(sol[0] + 0.5), int(sol[1] + 0.5)])
+        approx_target = np.matmul(mat, int_vec.T)
+
+        if (approx_target == target).all():
+            val += 3 * int_vec[0] + int_vec[1]
+
+    print(val)
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p12b("data/day12.txt")
+    p13b("data/day13.txt")
     print(f"Time: {time.time() - t0}")
