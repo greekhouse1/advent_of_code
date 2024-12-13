@@ -670,7 +670,7 @@ def p9b(fn):
 
 
 ###############################################################################
-#################################### Day 10 ####################################
+#################################### Day 10 ###################################
 ###############################################################################
 
 
@@ -736,7 +736,194 @@ def p10b(fn):
     print(total)
 
 
+###############################################################################
+#################################### Day 11 ###################################
+###############################################################################
+
+
+def p11a(fn):
+    with open(fn) as f:
+        stones = list(map(int, f.read().split()))
+
+    for _ in range(25):
+        new_stones = []
+        for x in stones:
+            if x == 0:
+                new_stones.append(1)
+            elif len(str(x)) % 2 == 0:
+                a = str(x)
+                y = [int(a[: len(a) // 2]), int(a[len(a) // 2 :])]
+                new_stones += y
+            else:
+                new_stones.append(x * 2024)
+        stones = new_stones
+
+    print(len(stones))
+
+
+def p11b(fn, num=25):
+    with open(fn) as f:
+        stones = list(map(int, f.read().split()))
+
+    stones = Counter(stones)
+
+    for _ in range(num):
+        new_stones = Counter()
+        for x, count in stones.items():
+            if x == 0:
+                new_stones[1] += count
+            elif len(str(x)) % 2 == 0:
+                a = str(x)
+                new_rocks = [int(a[: len(a) // 2]), int(a[len(a) // 2 :])]
+                for new_stone in new_rocks:
+                    new_stones[new_stone] += count
+            else:
+                new_stones[x * 2024] += count
+        stones = new_stones
+
+    count = sum(x for x in stones.values())
+    print(count)
+
+
+###############################################################################
+#################################### Day 12 ###################################
+###############################################################################
+
+
+class Union:
+    id: Point
+    parent: Point
+
+    def __init__(self, p: Point, val: str):
+        self.id = p
+        self.parent = self
+        self.val = val
+
+    def __repr__(self):
+        return f"Union({repr(self.id)}, {repr(self.val)})"
+
+
+def find(p: Union):
+    if p.parent is p:
+        return p
+    return find(p.parent)
+
+
+def union(p1, p2):
+    p1_rep = find(p1)
+    p2_rep = find(p2)
+    p1_rep.parent = p2_rep
+
+
+def perimeter(group, rows, cols):
+    shared_edges = 0
+    for p in group:
+        for neighbor in p.orthogonal(rows, cols):
+            if neighbor in group:
+                shared_edges += 1
+    return 4 * len(group) - shared_edges
+
+
+def p12a(fn):
+    with open(fn) as f:
+        garden = [x.rstrip() for x in f]
+        rows = len(garden)
+        cols = len(garden[0])
+
+    unions = {
+        Point(i, j): Union(Point(i, j), garden[i][j])
+        for i in range(rows)
+        for j in range(cols)
+    }
+
+    for this_point in unions.values():
+
+        for p in this_point.id.orthogonal(rows, cols):
+            if unions[p].val == this_point.val:
+                union(unions[p], this_point)
+
+    groups = defaultdict(set)
+    for point in unions.values():
+        groups[find(point)].add(point.id)
+
+    total = 0
+    for v in groups.values():
+        total += len(v) * perimeter(v, rows, cols)
+    print(total)
+
+
+def sides(group, rows, cols):
+    max_row = max(p.x for p in group)
+    min_row = min(p.x for p in group)
+
+    max_col = max(p.y for p in group)
+    min_col = min(p.y for p in group)
+
+    edges = 0
+    # horizontal test
+    for i in range(min_row - 1, max_row + 1):
+        pattern = (False, False)
+        for j in range(min_col, max_col + 1):
+            p1 = Point(i, j)
+            p2 = Point(i + 1, j)
+            this_pattern = (p1 in group, p2 in group)
+
+            if this_pattern == pattern:
+                continue
+
+            if this_pattern in {(True, False), (False, True)}:
+                edges += 1
+
+            pattern = this_pattern
+
+        # horizontal test
+    for j in range(min_col - 1, max_col + 1):
+        pattern = (False, False)
+        for i in range(min_row, max_row + 1):
+            p1 = Point(i, j)
+            p2 = Point(i, j + 1)
+            this_pattern = (p1 in group, p2 in group)
+
+            if this_pattern == pattern:
+                continue
+
+            if this_pattern in {(True, False), (False, True)}:
+                edges += 1
+
+            pattern = this_pattern
+    return edges
+
+
+def p12b(fn):
+    with open(fn) as f:
+        garden = [x.rstrip() for x in f]
+        rows = len(garden)
+        cols = len(garden[0])
+
+    unions = {
+        Point(i, j): Union(Point(i, j), garden[i][j])
+        for i in range(rows)
+        for j in range(cols)
+    }
+
+    for this_point in unions.values():
+
+        for p in this_point.id.orthogonal(rows, cols):
+            if unions[p].val == this_point.val:
+                union(unions[p], this_point)
+
+    groups = defaultdict(set)
+    for point in unions.values():
+        groups[find(point)].add(point.id)
+
+    total = 0
+    for v in groups.values():
+        # print(len(v), sides(v, rows, cols))
+        total += len(v) * sides(v, rows, cols)
+    print(total)
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p10b("data/day10.txt")
+    p12b("data/day12.txt")
     print(f"Time: {time.time() - t0}")
