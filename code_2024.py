@@ -926,7 +926,7 @@ def p12b(fn):
 
 
 ###############################################################################
-#################################### Day 12 ###################################
+#################################### Day 13 ###################################
 ###############################################################################
 
 
@@ -1017,7 +1017,93 @@ def p13b(fn):
     print(val)
 
 
+###############################################################################
+#################################### Day 14 ###################################
+###############################################################################
+
+
+class Robot:
+    def __init__(self, line):
+        p, v = line.split()
+        p, v = p.split("=")[-1], v.split("=")[-1]
+        p, v = list(map(int, p.split(","))), list(map(int, v.split(",")))
+
+        self.p = p
+        self.v = v
+
+    def __repr__(self):
+        return f"Robot(p={self.p}, v={self.v})"
+
+    def move(self, steps, rows, cols):
+        self.p = (
+            (self.p[0] + steps * self.v[0]) % rows,
+            (self.p[1] + steps * self.v[1]) % cols,
+        )
+
+    def quadrant(self, rows, cols):
+        mid_row = rows // 2
+        mid_col = cols // 2
+
+        if self.p[0] < mid_row:
+            if self.p[1] < mid_col:
+                return 0
+            elif self.p[1] > mid_col:
+                return 1
+        elif self.p[0] > mid_row:
+            if self.p[1] < mid_col:
+                return 2
+            elif self.p[1] > mid_col:
+                return 3
+
+        return None
+
+
+def p14a(fn, rows=11, cols=7):
+    robots = []
+    with open(fn) as f:
+        for line in f:
+            robots.append(Robot(line))
+
+    quad_counts = [0, 0, 0, 0]
+
+    for r in robots:
+        r.move(100, rows, cols)
+        q = r.quadrant(rows, cols)
+        print(r.p, q)
+        if q is not None:
+            quad_counts[q] += 1
+
+    print(quad_counts)
+    print(quad_counts[0] * quad_counts[1] * quad_counts[2] * quad_counts[3])
+
+
+def print_grid(robots, rows, cols):
+    grid = [[False for _ in range(rows)] for _ in range(cols)]
+    for r in robots:
+        grid[r.p[1]][r.p[0]] = True
+
+    for row in grid:
+        print("".join("#" if x else "." for x in row))
+
+
+def p14b(fn, rows=11, cols=7):
+    robots = []
+    with open(fn) as f:
+        for line in f:
+            robots.append(Robot(line))
+
+    for it in range(10**7):
+        if it%103 == 33:
+            print_grid(robots, rows, cols)
+            print(it)
+            print("-" * 80)
+            input()
+        for r in robots:
+            r.move(1, rows, cols)
+
+
 if __name__ == "__main__":
+
     t0 = time.time()
-    p13b("data/day13.txt")
+    p14b("data/day14.txt", 101, 103)
     print(f"Time: {time.time() - t0}")
