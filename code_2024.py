@@ -1,6 +1,7 @@
 import copy
 from dataclasses import dataclass
 from functools import total_ordering
+from heapq import heappop, heappush
 import itertools
 import re
 
@@ -1093,7 +1094,7 @@ def p14b(fn, rows=11, cols=7):
             robots.append(Robot(line))
 
     for it in range(10**7):
-        if it%103 == 33:
+        if it % 103 == 33:
             print_grid(robots, rows, cols)
             print(it)
             print("-" * 80)
@@ -1102,8 +1103,416 @@ def p14b(fn, rows=11, cols=7):
             r.move(1, rows, cols)
 
 
-if __name__ == "__main__":
+###############################################################################
+#################################### Day 15 ###################################
+###############################################################################
 
+
+def read15(fn):
+    with open(fn) as f:
+        in_moves = False
+        move_string = ""
+        grid = []
+        for line in f:
+            line = line.strip()
+            if not line:
+                in_moves = True
+                continue
+            if in_moves:
+                move_string += line
+            else:
+                grid.append(list(line))
+
+        return grid, move_string
+
+
+def get_robot_position(grid):
+    rows = len(grid)
+    cols = len(grid[0])
+    for i in range(rows):
+        for j in range(cols):
+            if grid[i][j] == "@":
+                return i, j
+
+
+class CantMove(Exception): ...
+
+
+DIR_MAP = {
+    "^": (-1, 0),
+    "v": (1, 0),
+    "<": (0, -1),
+    ">": (0, 1),
+}
+
+
+def move(position, direction, grid, thing="@"):
+    new_pos = (position[0] + direction[0], position[1] + direction[1])
+    if grid[new_pos[0]][new_pos[1]] == ".":
+        grid[new_pos[0]][new_pos[1]] = thing
+        grid[position[0]][position[1]] = "."
+        return
+    elif grid[new_pos[0]][new_pos[1]] == "#":
+        raise CantMove
+    else:
+        new_thing = grid[new_pos[0]][new_pos[1]]
+        try:
+            move(new_pos, direction, grid, thing=new_thing)
+        except CantMove as e:
+            raise e
+        grid[new_pos[0]][new_pos[1]] = thing
+        grid[position[0]][position[1]] = "."
+
+
+def p15a(fn):
+    grid, moves = read15(fn)
+    # for line in grid:
+    #     print("".join(line))
+    # print()
+    # print(moves)
+    # print()
+    robot = get_robot_position(grid)
+
+    for d in moves:
+        dir = DIR_MAP[d]
+        try:
+            move(robot, dir, grid)
+        except CantMove:
+            pass
+        else:
+            robot = (robot[0] + dir[0], robot[1] + dir[1])
+        # finally:
+        #     print(f"Move {d}:")
+        #     for line in grid:
+        #         print("".join(line))
+        #     print()
+
+    total = 0
+    for i, row in enumerate(grid):
+        for j, symbol in enumerate(row):
+            if symbol == "O":
+                total += 100 * i + j
+    print(total)
+
+
+def double_grid(grid):
+    new_grid = []
+    for row in grid:
+        new_row = []
+        for x in row:
+            if x in "#.":
+                new_row += [x, x]
+            elif x == "O":
+                new_row += ["[", "]"]
+            else:
+                new_row += ["@", "."]
+        new_grid.append(new_row)
+    return new_grid
+
+
+def move2(position, direction, grid, thing=("@",)):
+    if direction[0] == 0:
+        return move(position[0], direction, grid, thing[0])
+    pos_to_push = [(x[0] + direction[0], x[1]) for x in position]
+    grid_markers = [grid[x][y] for (x, y) in pos_to_push]
+    if "#" in grid_markers:
+        raise CantMove
+    if all(x == "." for x in grid_markers):
+        for x, y, t in zip(pos_to_push, position, thing):
+            grid[x[0]][x[1]] = t
+            grid[y[0]][y[1]] = "."
+        return
+
+    pos_for_next_push = []
+    new_thing = []
+    for newx, t in zip(pos_to_push, thing):
+        t_new = grid[newx[0]][newx[1]]
+        if t_new == ".":
+            continue
+        pos_for_next_push.append(newx)
+        new_thing.append(t_new)
+        if t == t_new:
+            continue
+        if t_new == "[":
+            p_right = (newx[0], newx[1] + 1)
+            pos_for_next_push.append(p_right)
+            new_thing.append("]")
+        if t_new == "]":
+            p_left = (newx[0], newx[1] - 1)
+            pos_for_next_push.append(p_left)
+            new_thing.append("[")
+
+    # Will raise exception if can't move
+    move2(pos_for_next_push, direction, grid, new_thing)
+
+    for p in position:
+        grid[p[0]][p[1]] = "."
+    for p, t in zip(pos_to_push, thing):
+        grid[p[0]][p[1]] = t
+
+
+def p15b(fn):
+    grid, moves = read15(fn)
+    grid = double_grid(grid)
+    for line in grid:
+        print("".join(line))
+    print()
+    print(moves)
+    print()
+    robot = get_robot_position(grid)
+    for d in moves:
+        dir = DIR_MAP[d]
+        try:
+            move2((robot,), dir, grid)
+        except CantMove:
+            pass
+        else:
+            robot = (robot[0] + dir[0], robot[1] + dir[1])
+        # finally:
+        #     print(f"Move {d}:")
+        #     for line in grid:
+        #         print("".join(line))
+        #     print()
+
+    total = 0
+    for i, row in enumerate(grid):
+        for j, symbol in enumerate(row):
+            if symbol == "[":
+                total += 100 * i + j
+    print(total)
+
+
+###############################################################################
+#################################### Day 16 ###################################
+###############################################################################
+
+
+def read16(fn):
+    with open(fn) as f:
+        grid = []
+        for line in f:
+            line = line.strip()
+            grid.append(list(line))
+
+        return grid
+
+
+def get_start16(grid):
+    for idx, row in enumerate(grid):
+        for jdx, char in enumerate(row):
+            if char == "S":
+                return Point(idx, jdx)
+
+
+def get_rotations(p):
+    if p.x == 0:
+        return Point(1, 0), Point(-1, 0)
+    return Point(0, 1), Point(0, -1)
+
+
+def p16a(fn):
+    grid = read16(fn)
+    start = get_start16(grid)
+
+    heap = [(0, start, Point(0, 1))]
+    used = set()
+    while heap:
+        score, position, orientation = heappop(heap)
+        if (position, orientation) in used:
+            continue
+        else:
+            used.add((position, orientation))
+
+        if grid[position.x][position.y] == "E":
+            print(score)
+            return score
+        if grid[position.x][position.y] == "#":
+            continue
+
+        heappush(heap, (score + 1, position + orientation, orientation))
+        for new_ori in get_rotations(orientation):
+            heappush(heap, (score + 1001, position + new_ori, new_ori))
+
+
+def p16b(fn):
+    best_score = p16a(fn)
+    grid = read16(fn)
+    start = get_start16(grid)
+
+    heap = [(0, [start], [Point(0, 1)])]
+    used = defaultdict(int)
+    visitations = defaultdict(set)
+    best_tiles = set()
+    while heap:
+        score, position_list, orientation_list = heappop(heap)
+        if score > best_score:
+            break
+        position = position_list[-1]
+        orientation = orientation_list[-1]
+        if (position, orientation) not in used:
+            used[(position, orientation)] = score
+            visitations[(position, orientation)].update(position_list)
+        elif used[((position, orientation))] == score:
+            visitations[(position, orientation)].update(position_list)
+            continue
+        else:
+            continue
+
+        if grid[position.x][position.y] == "E":
+            # print(score)
+            # print(position_list)
+            for p, ori in zip(position_list, orientation_list):
+                best_tiles.update(visitations[p, ori])
+
+        if grid[position.x][position.y] == "#":
+            continue
+
+        heappush(
+            heap,
+            (
+                score + 1,
+                position_list + [position + orientation],
+                orientation_list + [orientation],
+            ),
+        )
+        for new_ori in get_rotations(orientation):
+            heappush(
+                heap,
+                (
+                    score + 1001,
+                    position_list + [position + new_ori],
+                    orientation_list + [new_ori],
+                ),
+            )
+
+    print(len(best_tiles))
+
+
+###############################################################################
+#################################### Day 17 ###################################
+###############################################################################
+
+
+@dataclass
+class Register:
+    A: int = 0
+    B: int = 0
+    C: int = 0
+
+
+test17 = [Register(A=729), [0, 1, 5, 4, 3, 0]]
+real17 = [Register(A=51342988), [2, 4, 1, 3, 7, 5, 4, 0, 1, 3, 0, 3, 5, 5, 3, 0]]
+
+
+def combo(x, register):
+    if x < 4:
+        return x
+    if x == 4:
+        return register.A
+    if x == 5:
+        return register.B
+    if x == 6:
+        return register.C
+
+
+def adv(x, register):
+    register.A = register.A >> combo(x, register)
+
+
+def bxl(x, register):
+    register.B ^= x
+
+
+def bst(x, register):
+    register.B = combo(x, register) % 8
+
+
+def jnz(x, register):
+    if register.A == 0:
+        return
+    return x
+
+
+def bxc(_, register):
+    register.B ^= register.C
+
+
+def out(x, register):
+    return str(combo(x, register) % 8)
+
+
+def bdv(x, register):
+    register.B = register.A >> combo(x, register)
+
+
+def cdv(x, register):
+    register.C = register.A >> combo(x, register)
+
+
+instructions = [adv, bxl, bst, jnz, bxc, out, bdv, cdv]
+
+
+def execute(register, program):
+    idx = 0
+    final = []
+    while idx < len(program):
+        op = instructions[program[idx]]
+        out = op(program[idx + 1], register)
+        if isinstance(out, str):
+            final.append(out)
+
+        if isinstance(out, int):
+            idx = out
+        else:
+            idx += 2
+    return ",".join(final)
+
+
+examples = [
+    # [Register(C=9), [2, 6]],
+    # [Register(A=10), [5, 0, 5, 1, 5, 4]],
+    # [Register(A=2024), [0, 1, 5, 4, 3, 0]],
+    [Register(B=29), [1, 7]],
+    [Register(B=2024, C=43690), [4, 0]],
+]
+
+
+def p17a(register, program):
+    # for register, program in examples:
+    #     print(register)
+    #     out = execute(register, program)
+    #     print(register)
+    #     print(out)
+    #     print("-" * 80)
+    print(execute(register, program))
+
+
+def match(output, program):
+    target, *rest = output
+    if not rest:
+        for a in range(8):
+            out = int(execute(Register(A=a), program))
+            if out == target:
+                yield a
+    else:
+        for a in match(rest, program):
+            for i in range(8):
+                new_a = (8 * a) + i
+                out = int(execute(Register(A=new_a), program))
+                if out == target:
+                    yield new_a
+
+
+def p17b(_, program):
+    for x in sorted(match(program, program[:-2])):
+        e = list(map(int, execute(Register(A=x), program).split(",")))
+        if e == program:
+            print(x, execute(Register(A=x), program))
+
+
+test17b = [Register(2024), [0, 3, 5, 4, 3, 0]]
+
+if __name__ == "__main__":
     t0 = time.time()
-    p14b("data/day14.txt", 101, 103)
+    p17b(*real17)
     print(f"Time: {time.time() - t0}")
