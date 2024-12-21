@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass
-from functools import total_ordering
+from functools import cache, total_ordering
 from heapq import heappop, heappush
 import itertools
 import re
@@ -56,6 +56,13 @@ class Point:
             p = Point(self.x, j)
             if p.in_grid(rows, cols):
                 yield p
+
+    def taxicab(self, count, rows, cols):
+        for i in range(-count, count + 1):
+            for j in range(-count + abs(i), count - abs(i) + 1):
+                p = Point(self.x + i, self.y + j)
+                if p.in_grid(rows, cols):
+                    yield p
 
 
 ###############################################################################
@@ -1512,7 +1519,198 @@ def p17b(_, program):
 
 test17b = [Register(2024), [0, 3, 5, 4, 3, 0]]
 
+###############################################################################
+#################################### Day 18 ###################################
+###############################################################################
+
+
+def read18(fn):
+    ret = []
+    with open(fn) as f:
+        for line in f:
+            x, y = map(int, line.split(","))
+            ret.append(Point(x, y))
+    return ret
+
+
+def p18a(fn, bound=6, stop=12):
+    corrupted = read18(fn)[:stop]
+    start = Point(0, 0)
+    target = Point(bound, bound)
+    visited = {start}
+    visited.update(corrupted)
+    heap = [(0, start)]
+    while heap:
+        # print(heap)
+        steps, p = heappop(heap)
+        if p == target:
+            print(steps)
+            return steps
+        for x in p.orthogonal(bound + 1, bound + 1):
+            if x not in visited:
+                heappush(heap, (steps + 1, x))
+                visited.add(x)
+
+
+def p18b(fn, bound=6):
+    corrupted = read18(fn)
+    for idx in range(len(corrupted)):
+        steps = p18a(fn, bound=bound, stop=idx)
+        if steps is None:
+            p = corrupted[idx - 1]
+            print(f"{p.x},{p.y}")
+            break
+
+
+###############################################################################
+#################################### Day 18 ###################################
+###############################################################################
+
+
+def read19(fn):
+    with open(fn) as f:
+        line = next(f)
+        towels = frozenset({x.strip() for x in line.split(",")})
+        next(f)
+        patterns = [x.strip() for x in f]
+    return towels, patterns
+
+
+@cache
+def get_patterns(pattern, towels, max_len):
+    if not pattern:
+        return 1
+
+    vals = 0
+    for i in range(1, min(len(pattern), max_len) + 1):
+        t1 = pattern[:i]
+        if t1 in towels:
+            vals += get_patterns(pattern[i:], towels, max_len)
+    return vals
+
+
+def p19a(fn):
+    towels, patterns = read19(fn)
+    max_towel_length = max(len(x) for x in towels)
+    print(max_towel_length)
+
+    count = 0
+    for p in patterns:
+        gp = get_patterns(p, towels, max_len=max_towel_length)
+        print(p, gp)
+        if gp:
+            count += 1
+    print(count)
+
+
+def p19a(fn):
+    towels, patterns = read19(fn)
+    max_towel_length = max(len(x) for x in towels)
+    print(max_towel_length)
+
+    count = 0
+    for p in patterns:
+        gp = get_patterns(p, towels, max_len=max_towel_length)
+        print(p, gp)
+        count += gp
+    print(count)
+
+
+###############################################################################
+#################################### Day 20 ###################################
+###############################################################################
+
+
+def read20(fn):
+    ret = []
+    with open(fn) as f:
+        for line in f:
+            row = [c for c in line.strip()]
+            ret.append(row)
+    return ret
+
+
+def find_element(elt, grid):
+    for idx, row in enumerate(grid):
+        for jdx, col in enumerate(row):
+            if col == elt:
+                return Point(idx, jdx)
+
+
+def make_dict(start, grid):
+    rows = len(grid)
+    cols = len(grid[0])
+    fastest = {start: 0}
+    heap = [(0, start)]
+    while heap:
+        score, p = heappop(heap)
+        for neighbor in p.orthogonal(rows, cols):
+            if grid[neighbor.x][neighbor.y] != "#":
+                if neighbor not in fastest:
+                    fastest[neighbor] = score + 1
+                    heappush(heap, (score + 1, neighbor))
+    return fastest
+
+
+def improve(grid, cheat, fastest):
+    rows = len(grid)
+    cols = len(grid[0])
+    neighbors = [p for p in cheat.orthogonal(rows, cols) if grid[p.x][p.y] != "#"]
+    if len(neighbors) != 2:
+        return False
+
+    n0, n1 = neighbors
+    for x, y in [(n0, n1), (n1, n0)]:
+        if fastest[x] - fastest[y] >= 100 + 2:
+            return True
+    return False
+
+
+def improve2(grid, cheat, fastest):
+    rows = len(grid)
+    cols = len(grid[0])
+
+    position = fastest[cheat]
+    count = 0
+
+    for y in cheat.taxicab(20, rows, cols):
+        if y in fastest:
+            dist = abs(cheat.x - y.x) + abs(cheat.y - y.y)
+            if fastest[y] - position >= 100 + dist:
+                # print(cheat, y, dist, position, fastest[y])
+                count += 1
+    return count
+
+
+def p20a(fn):
+    grid = read20(fn)
+
+    start = find_element("S", grid)
+    d = make_dict(start, grid)
+
+    count = 0
+    for idx, row in enumerate(grid):
+        for jdx, col in enumerate(row):
+            if improve2(grid, Point(idx, jdx), d):
+                count += 1
+    print(count)
+
+
+def p20b(fn):
+    grid = read20(fn)
+    start = find_element("S", grid)
+    d = make_dict(start, grid)
+
+    count = 0
+    for idx, row in enumerate(grid):
+        for jdx, col in enumerate(row):
+            if grid[idx][jdx] == "#":
+                continue
+            count += improve2(grid, Point(idx, jdx), d)
+    print(count)
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p17b(*real17)
+    p20b("data/day20.txt")
     print(f"Time: {time.time() - t0}")
