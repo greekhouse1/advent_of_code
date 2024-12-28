@@ -1856,64 +1856,42 @@ def make_pair_lu():
     for x in itertools.product("A^v<>", repeat=2):
         key = "".join(x)
         v = ["A" + x for x in generate(key)]
-        ret[key] = [Counter("".join(x) for x in zip(y, y[1:])) for y in v]
+        ret[key] = [tuple("".join(x) for x in zip(y, y[1:])) for y in v]
     return ret
+
 
 PAIR_TRANSITIONS = make_pair_lu()
 
 
-def make_counters(pattern, pair_transitions):
-    possibilities = [pair_transitions["".join(x)] for x in zip(pattern, pattern[1:])]
-    for x in itertools.product(*possibilities):
-        yield sum(x, Counter())
+@cache
+def path_cost(k1, k2, depth=1):
+    if depth == 0:
+        return 1
 
+    best = 10**100
 
-def advance(pattern_counter, pair_transitions, num_steps=1):
-    next_steps = []
-    for pattern, count in pattern_counter.items():
-        these_transitions = []
-        for c in pair_transitions[pattern]:
-            these_transitions.append(Counter({x: count * y for (x, y) in c.items()}))
-        next_steps.append(these_transitions)
-
-    trials = []
-    for x in itertools.product(*next_steps):
-        c = sum(x, Counter())
-        if not any(c >= x for x in trials):
-            trials.append(c)
-        else:
-            print("dumping")
-    if num_steps == 1:
-        yield from trials
-    else:
-        ret = []
-        for t in trials:
-            for pc in advance(t, pair_transitions, num_steps=num_steps - 1):
-                if not any(pc >= x for x in ret):
-                    ret.append(pc)
-                    yield pc
-
+    for path in PAIR_TRANSITIONS[k1 + k2]:
+        # print(k1, k2, depth, path)
+        length = sum(path_cost(*x, depth=depth - 1) for x in path)
+        best = min(best, length)
+    return best
 
 
 def p21b():
-    pair_transitions = make_pair_lu()
+    print(PAIR_TRANSITIONS)
     score = 0
-    for x in test21:
+    for x in input21:
         print(x)
-        trials = []
-        for p1 in generate("A" + x, keyboard=KEYPAD, keyboard_r=KEYPAD_R):
-            print(p1)
-            for c in make_counters("A" + p1, pair_transitions):
-                if not any(c >= x for x in trials):
-                    trials.append(c)
-
         min_len = 10**100
-        for t in trials:
-            for c in advance(t, pair_transitions, 2):
-                length = sum(c.values())
-                min_len = min(min_len, length)
+
+        for p1 in generate("A" + x, keyboard=KEYPAD, keyboard_r=KEYPAD_R):
+            p1 = "A" + p1
+            cost = sum(path_cost(x, y, 25) for (x, y) in zip(p1, p1[1:]))
+            min_len = min(min_len, cost)
+            print(x, p1, cost)
+
         val = int(x[:-1])
-        print(x, min_len, val)
+        print(x, min_len, val, min_len * val)
         score += min_len * val
     print(score)
 
