@@ -1897,7 +1897,7 @@ def p21b():
 
 
 ###############################################################################
-#################################### Day 21 ###################################
+#################################### Day 22 ###################################
 ###############################################################################
 
 
@@ -1970,9 +1970,58 @@ def p22b(fn):
             max_key = key
     print(max_key, max_bananas)
 
+###############################################################################
+#################################### Day 23 ###################################
+###############################################################################
+
+def read23(fn):
+    with open(fn) as f:
+        d = defaultdict(set)
+        for line in f:
+            x, y = line.strip().split("-")
+            d[x].add(y)
+            d[y].add(x)
+    return d
+
+def p23a(fn):
+    graph = read23(fn)
+    possible = set()
+    
+    for x, neighbors in graph.items():
+        for y, z in itertools.combinations(neighbors, r=2):
+            if y in graph[z]:
+                s = tuple(sorted((x,y,z)))
+                if any(t[0] == "t" for t in s):
+                    possible.add(s)
+                    # print(s)
+    print(len(possible))
+
+def get_largest_clique(good, potential, graph):
+    if not potential:
+        return good
+    
+    best_so_far = good
+    while potential:
+        candidate = potential.pop()
+        if all(x in graph[candidate] for x in good):
+            candidate_set = get_largest_clique(good + (candidate,), copy.deepcopy(potential), graph)
+            if len(candidate_set) > len(best_so_far):
+                best_so_far = candidate_set
+    return best_so_far
+
+
+def p23b(fn):
+    graph = read23(fn)
+    best_so_far = tuple()
+    for node, neighbors in graph.items():
+        candidate_set = get_largest_clique((node,), neighbors, graph)
+        if len(candidate_set) > len(best_so_far):
+            best_so_far = candidate_set
+    
+    print(",".join(sorted(best_so_far)))
 
 
 if __name__ == "__main__":
     t0 = time.time()
-    p22b("data/day22.txt")
+    p23b("data/day23.txt")
     print(f"Time: {time.time() - t0}")
