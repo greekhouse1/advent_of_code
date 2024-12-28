@@ -1896,7 +1896,83 @@ def p21b():
     print(score)
 
 
+###############################################################################
+#################################### Day 21 ###################################
+###############################################################################
+
+
+def mix(x, y):
+    return x ^ y
+
+
+def prune(x):
+    return x % 16777216
+
+
+def evolve(secret):
+    s = secret << 6  # 64*secret
+    secret = prune(mix(secret, s))
+
+    s = secret >> 5  # int(secret/32)
+    secret = prune(mix(secret, s))
+
+    s = secret << 11  # 2048*secret
+    return prune(mix(secret, s))
+
+
+def p22a(fn):
+    with open(fn) as f:
+        secrets = [int(x) for x in f]
+
+    total = 0
+    for secret in secrets:
+        s = secret
+        for _ in range(2000):
+            s = evolve(s)
+        total += s
+    print(total)
+
+def make_seq_lu(secret):
+    lu = dict()
+    seq = tuple()
+    for _ in range(2000):
+        s = evolve(secret)
+        p0, p1 = secret % 10, s % 10
+        change = p1 - p0
+        secret = s
+        if len(seq) < 4:
+            seq += (change,)
+        else:
+            seq = seq[1:] + (change,)
+        if len(seq) == 4 and seq not in lu:
+            lu[seq] = p1
+    return lu
+
+def p22b(fn):
+    with open(fn) as f:
+        secrets = [int(x) for x in f]
+
+    keys = set()
+    lookups = []
+    for secret in secrets:
+        lu = make_seq_lu(secret)
+        lookups.append(lu)
+        keys.update(lu.keys())
+
+    max_key = None
+    max_bananas = 0
+    for key in keys:
+        bananas = 0
+        for lu in lookups:
+            bananas += lu.get(key, 0)
+        if bananas > max_bananas:
+            max_bananas = bananas
+            max_key = key
+    print(max_key, max_bananas)
+
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p21b()
+    p22b("data/day22.txt")
     print(f"Time: {time.time() - t0}")
