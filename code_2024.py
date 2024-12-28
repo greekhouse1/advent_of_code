@@ -1,3 +1,4 @@
+import collections
 import copy
 from dataclasses import dataclass
 from functools import cache, total_ordering
@@ -63,6 +64,9 @@ class Point:
                 p = Point(self.x + i, self.y + j)
                 if p.in_grid(rows, cols):
                     yield p
+
+    def abs(self):
+        return abs(self.x) + abs(self.y)
 
 
 ###############################################################################
@@ -1710,7 +1714,211 @@ def p20b(fn):
     print(count)
 
 
+###############################################################################
+#################################### Day 21 ###################################
+###############################################################################
+
+test21 = """029A
+980A
+179A
+456A
+379A""".split(
+    "\n"
+)
+
+input21 = """413A
+480A
+682A
+879A
+083A""".split(
+    "\n"
+)
+
+dir_to_char = {
+    Point(1, 0): "v",
+    Point(-1, 0): "^",
+    Point(0, 1): ">",
+    Point(0, -1): "<",
+}
+
+char_to_dir = {y: x for (x, y) in dir_to_char.items()}
+
+KEYPAD = {
+    "7": Point(0, 0),
+    "8": Point(1, 0),
+    "9": Point(2, 0),
+    "4": Point(0, 1),
+    "5": Point(1, 1),
+    "6": Point(2, 1),
+    "1": Point(0, 2),
+    "2": Point(1, 2),
+    "3": Point(2, 2),
+    "0": Point(1, 3),
+    "A": Point(2, 3),
+}
+
+KEYPAD_R = {y: x for (x, y) in KEYPAD.items()}
+
+DIRPAD = {
+    "^": Point(1, 0),
+    "A": Point(2, 0),
+    "<": Point(0, 1),
+    "v": Point(1, 1),
+    ">": Point(2, 1),
+}
+
+DIRPAD_R = {y: x for (x, y) in DIRPAD.items()}
+
+
+def get_paths_on_keyboard(k1, k2, keyboard=None, keyboard_r=None):
+    if keyboard is None:
+        keyboard = DIRPAD
+    if keyboard_r is None:
+        keyboard_r = DIRPAD_R
+
+    if k1 not in keyboard_r:
+        return
+
+    if k1 == k2:
+        yield "A"
+        return
+
+    if k1.x > k2.x:
+        new_k1 = Point(k1.x - 1, k1.y)
+        for x in get_paths_on_keyboard(new_k1, k2, keyboard, keyboard_r):
+            yield "<" + x
+
+    if k1.x < k2.x:
+        new_k1 = Point(k1.x + 1, k1.y)
+        for x in get_paths_on_keyboard(new_k1, k2, keyboard, keyboard_r):
+            yield ">" + x
+
+    if k1.y > k2.y:
+        new_k1 = Point(k1.x, k1.y - 1)
+        for x in get_paths_on_keyboard(new_k1, k2, keyboard, keyboard_r):
+            yield "^" + x
+
+    if k1.y < k2.y:
+        new_k1 = Point(k1.x, k1.y + 1)
+        for x in get_paths_on_keyboard(new_k1, k2, keyboard, keyboard_r):
+            yield "v" + x
+
+
+def generate(code, keyboard=None, keyboard_r=None):
+    if keyboard is None:
+        keyboard = DIRPAD
+    if keyboard_r is None:
+        keyboard_r = DIRPAD_R
+
+    if len(code) == 2:
+        yield from get_paths_on_keyboard(
+            keyboard[code[0]],
+            keyboard[code[1]],
+            keyboard=keyboard,
+            keyboard_r=keyboard_r,
+        )
+        return
+
+    paths = get_paths_on_keyboard(
+        keyboard[code[0]],
+        keyboard[code[1]],
+        keyboard=keyboard,
+        keyboard_r=keyboard_r,
+    )
+    gen = generate(code[1:], keyboard=keyboard, keyboard_r=keyboard_r)
+    yield from ("".join(x) for x in itertools.product(paths, gen))
+
+
+def get_length(k1, k2, keyboard=None):
+    if keyboard is None:
+        keyboard = DIRPAD
+
+    return (keyboard[k1] - keyboard[k2]).abs() + 1
+
+
+def p21a():
+    score = 0
+    for x in input21:
+        min_len = 10**100
+        for p1 in generate("A" + x, keyboard=KEYPAD, keyboard_r=KEYPAD_R):
+            for p2 in generate("A" + p1):
+                # for p3 in generate("A" + p2):
+                length = sum(get_length(x, y) for (x, y) in zip("A" + p2, p2))
+                min_len = min(min_len, length)
+        val = int(x[:-1])
+        print(x, min_len, val)
+        score += min_len * val
+    print(score)
+
+
+def make_pair_lu():
+    ret = dict()
+    for x in itertools.product("A^v<>", repeat=2):
+        key = "".join(x)
+        v = ["A" + x for x in generate(key)]
+        ret[key] = [Counter("".join(x) for x in zip(y, y[1:])) for y in v]
+    return ret
+
+PAIR_TRANSITIONS = make_pair_lu()
+
+
+def make_counters(pattern, pair_transitions):
+    possibilities = [pair_transitions["".join(x)] for x in zip(pattern, pattern[1:])]
+    for x in itertools.product(*possibilities):
+        yield sum(x, Counter())
+
+
+def advance(pattern_counter, pair_transitions, num_steps=1):
+    next_steps = []
+    for pattern, count in pattern_counter.items():
+        these_transitions = []
+        for c in pair_transitions[pattern]:
+            these_transitions.append(Counter({x: count * y for (x, y) in c.items()}))
+        next_steps.append(these_transitions)
+
+    trials = []
+    for x in itertools.product(*next_steps):
+        c = sum(x, Counter())
+        if not any(c >= x for x in trials):
+            trials.append(c)
+        else:
+            print("dumping")
+    if num_steps == 1:
+        yield from trials
+    else:
+        ret = []
+        for t in trials:
+            for pc in advance(t, pair_transitions, num_steps=num_steps - 1):
+                if not any(pc >= x for x in ret):
+                    ret.append(pc)
+                    yield pc
+
+
+
+def p21b():
+    pair_transitions = make_pair_lu()
+    score = 0
+    for x in test21:
+        print(x)
+        trials = []
+        for p1 in generate("A" + x, keyboard=KEYPAD, keyboard_r=KEYPAD_R):
+            print(p1)
+            for c in make_counters("A" + p1, pair_transitions):
+                if not any(c >= x for x in trials):
+                    trials.append(c)
+
+        min_len = 10**100
+        for t in trials:
+            for c in advance(t, pair_transitions, 2):
+                length = sum(c.values())
+                min_len = min(min_len, length)
+        val = int(x[:-1])
+        print(x, min_len, val)
+        score += min_len * val
+    print(score)
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p20b("data/day20.txt")
+    p21b()
     print(f"Time: {time.time() - t0}")
