@@ -2011,7 +2011,7 @@ def get_largest_clique(good, potential, graph):
         candidate = potential.pop()
         if all(x in graph[candidate] for x in good):
             candidate_set = get_largest_clique(
-                good + (candidate,), copy.deepcopy(potential), graph
+                good + (candidate,), copy.copy(potential), graph
             )
             if len(candidate_set) > len(best_so_far):
                 best_so_far = candidate_set
@@ -2022,14 +2022,69 @@ def p23b(fn):
     graph = read23(fn)
     best_so_far = tuple()
     for node, neighbors in graph.items():
-        candidate_set = get_largest_clique((node,), copy.deepcopy(neighbors), graph)
+        candidate_set = get_largest_clique((node,), copy.copy(neighbors), graph)
         if len(candidate_set) > len(best_so_far):
             best_so_far = candidate_set
 
     print(",".join(sorted(best_so_far)))
 
+###############################################################################
+#################################### Day 24 ###################################
+###############################################################################
+
+def read24(fn):
+    vals = dict()
+    ops = dict()
+    in_ops = False
+    with open(fn) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                in_ops = True
+                continue
+            if in_ops:
+                x =line.split()
+                ops[x[-1]] = (x[0], x[2], x[1])
+            else:
+                key, val = line.split(":")
+                vals[key] = int(val)
+
+    return vals, ops
+
+
+
+def p23b(fn):
+    vals, ops = read24(fn)
+    print(vals)
+    while ops:
+        added = []
+        for target, (input1, input2, operator) in ops.items():
+            try:
+                v1 = vals[input1]
+                v2 = vals[input2]
+            except KeyError:
+                continue
+
+            match operator:
+                case "AND":
+                    vals[target] = v1&v2
+                case "OR":
+                    vals[target] = v1|v2
+                case "XOR":
+                    vals[target] = v1^v2
+            added.append(target)
+        for key in added:
+            del ops[key]
+    
+    total = 0
+    for k, v in sorted(vals.items(), reverse=True):
+        if not k.startswith("z"):
+            break
+        print(f"{k}: {v}")
+        total = (total << 1) + v
+    print(total)
 
 if __name__ == "__main__":
     t0 = time.time()
-    p23b("data/day23.txt")
+    p23b("data/day24.txt")
     print(f"Time: {time.time() - t0}")
