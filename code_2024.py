@@ -1932,6 +1932,7 @@ def p22a(fn):
         total += s
     print(total)
 
+
 def make_seq_lu(secret):
     lu = dict()
     seq = tuple()
@@ -1947,6 +1948,7 @@ def make_seq_lu(secret):
         if len(seq) == 4 and seq not in lu:
             lu[seq] = p1
     return lu
+
 
 def p22b(fn):
     with open(fn) as f:
@@ -1970,9 +1972,11 @@ def p22b(fn):
             max_key = key
     print(max_key, max_bananas)
 
+
 ###############################################################################
 #################################### Day 23 ###################################
 ###############################################################################
+
 
 def read23(fn):
     with open(fn) as f:
@@ -1983,28 +1987,32 @@ def read23(fn):
             d[y].add(x)
     return d
 
+
 def p23a(fn):
     graph = read23(fn)
     possible = set()
-    
+
     for x, neighbors in graph.items():
         for y, z in itertools.combinations(neighbors, r=2):
             if y in graph[z]:
-                s = tuple(sorted((x,y,z)))
+                s = tuple(sorted((x, y, z)))
                 if any(t[0] == "t" for t in s):
                     possible.add(s)
                     # print(s)
     print(len(possible))
 
+
 def get_largest_clique(good, potential, graph):
     if not potential:
         return good
-    
+
     best_so_far = good
     while potential:
         candidate = potential.pop()
         if all(x in graph[candidate] for x in good):
-            candidate_set = get_largest_clique(good + (candidate,), copy.deepcopy(potential), graph)
+            candidate_set = get_largest_clique(
+                good + (candidate,), copy.deepcopy(potential), graph
+            )
             if len(candidate_set) > len(best_so_far):
                 best_so_far = candidate_set
     return best_so_far
@@ -2017,7 +2025,7 @@ def p23b(fn):
         candidate_set = get_largest_clique((node,), copy.deepcopy(neighbors), graph)
         if len(candidate_set) > len(best_so_far):
             best_so_far = candidate_set
-    
+
     print(",".join(sorted(best_so_far)))
 
 
