@@ -2028,9 +2028,11 @@ def p23b(fn):
 
     print(",".join(sorted(best_so_far)))
 
+
 ###############################################################################
 #################################### Day 24 ###################################
 ###############################################################################
+
 
 def read24(fn):
     vals = dict()
@@ -2043,7 +2045,7 @@ def read24(fn):
                 in_ops = True
                 continue
             if in_ops:
-                x =line.split()
+                x = line.split()
                 ops[x[-1]] = (x[0], x[2], x[1])
             else:
                 key, val = line.split(":")
@@ -2052,8 +2054,7 @@ def read24(fn):
     return vals, ops
 
 
-
-def p23b(fn):
+def p24a(fn):
     vals, ops = read24(fn)
     print(vals)
     while ops:
@@ -2067,15 +2068,15 @@ def p23b(fn):
 
             match operator:
                 case "AND":
-                    vals[target] = v1&v2
+                    vals[target] = v1 & v2
                 case "OR":
-                    vals[target] = v1|v2
+                    vals[target] = v1 | v2
                 case "XOR":
-                    vals[target] = v1^v2
+                    vals[target] = v1 ^ v2
             added.append(target)
         for key in added:
             del ops[key]
-    
+
     total = 0
     for k, v in sorted(vals.items(), reverse=True):
         if not k.startswith("z"):
@@ -2084,7 +2085,226 @@ def p23b(fn):
         total = (total << 1) + v
     print(total)
 
+
+def get_symbolic_carry(i):
+    if i == 1:
+        return ("x00", "y00", "AND")
+    c_var = var_name("c", i - 1)
+    x_var = var_name("x", i - 1)
+    y_var = var_name("y", i - 1)
+    return (
+        ((c_var, x_var, "AND"), (c_var, y_var, "AND"), "OR"),
+        (x_var, y_var, "AND"),
+        "OR",
+    )
+
+
+def get_symbolic_z_val(i):
+    c_var = var_name("c", i)
+    x_var = var_name("x", i)
+    y_var = var_name("y", i)
+
+    if i == 0:
+        return (x_var, y_var, "XOR")
+    if i == 45:
+        return var_name("c", i)
+
+    return ((c_var, x_var, "XOR"), y_var, "XOR")
+
+
+def get_vars(op):
+    if isinstance(op, str):
+        return {op}
+    ret = set()
+    for x in op[:2]:
+        if isinstance(x, str):
+            ret.add(x)
+        else:
+            for y in get_vars(x):
+                ret.add(y)
+    return ret
+
+
+def evaluate(op, vals):
+    if isinstance(op, str):
+        return vals[op]
+    (input1, input2, operator) = op
+    if isinstance(input1, str):
+        v1 = vals[input1]
+    else:
+        v1 = evaluate(input1, vals)
+    if isinstance(input2, str):
+        v2 = vals[input2]
+    else:
+        v2 = evaluate(input2, vals)
+
+    match operator:
+        case "AND":
+            return v1 & v2
+        case "OR":
+            return v1 | v2
+        case "XOR":
+            return v1 ^ v2
+
+
+def equilvalent_ops(op1, op2):
+    vars1 = get_vars(op1)
+    vars2 = get_vars(op2)
+    if vars1 != vars2:
+        return False
+
+    for t in itertools.product([0, 1], repeat=len(vars1)):
+        d = dict(zip(vars1, t))
+        if evaluate(op1, d) != evaluate(op2, d):
+            return False
+    return True
+
+
+def replace_op(old_op, test_op, new_value):
+    if isinstance(old_op, str):
+        return old_op
+    if equilvalent_ops(old_op, test_op):
+        return new_value
+
+    input1, input2, operator = old_op
+    new_input1 = replace_op(input1, test_op, new_value)
+    new_input2 = replace_op(input2, test_op, new_value)
+    return (new_input1, new_input2, operator)
+
+
+def get_deps(wire, op_list):
+    if any(wire.startswith(x) for x in "xy"):
+        return set()
+    ret = set(op_list[wire][:2])
+
+    for x in op_list[wire][:2]:
+        for y in get_deps(x, op_list):
+            ret.add(y)
+    return ret
+
+
+def var_deps(deps):
+    return set(int(x[1:]) for x in deps if any(x.startswith(c) for c in "xy"))
+
+
+def var_name(letter, number):
+    return f"{letter}{number:0>2d}"
+
+
+def sub_symbolic_carry(operation, max_sub=None):
+    if max_sub is None:
+        max_sub = 45
+    for i in range(1, max_sub + 1):
+        c = get_symbolic_carry(i)
+        c_var = var_name("c", i)
+        operation = replace_op(operation, c, c_var)
+    return operation
+
+
+def get_symbolic_value_single(var_name, ops, tried=None):
+    if tried is None:
+        tried = set()
+    if var_name not in ops:
+        return var_name
+    if var_name in tried:
+        raise RecursionError
+    tried.add(var_name)
+    (input1, input2, operation) = ops[var_name]
+    return (
+        get_symbolic_value_single(input1, ops, tried),
+        get_symbolic_value_single(input2, ops, tried),
+        operation,
+    )
+
+
+def get_symbolic_values(ops):
+    vals = {}
+    for i in range(45):
+        vals[var_name("x", i)] = var_name("x", i)
+        vals[var_name("y", i)] = var_name("y", i)
+
+    for v in ops:
+        vals[v] = get_symbolic_value_single(v, ops)
+
+    return vals
+
+
+def find_z06_replacement(ops, i):
+    z_var = var_name("z", 5)
+    vals = get_symbolic_values(ops)
+    good_vars = set(get_deps(z_var, ops))
+
+    print(f"{vals[z_var]=}")
+    cur_z = sub_symbolic_carry(vals[z_var], max_sub=5)
+    print(f"{cur_z=}")
+    print(equilvalent_ops(get_symbolic_z_val(5), cur_z))
+
+    z_var = var_name("z", 6)
+    print(get_symbolic_z_val(6))
+    for symbol in ops:
+        if any(symbol.startswith(c) for c in "xyz") or symbol in good_vars:
+            continue
+        newops = copy.copy(ops)
+        newops[z_var], newops[symbol] = newops[symbol], newops[z_var]
+        new_z = get_symbolic_value_single(z_var, newops)
+        vars = get_vars(new_z)
+        if max(var_deps(vars)) > 6:
+            continue
+
+        cur_z = sub_symbolic_carry(new_z, max_sub=6)
+        # print(f"{get_symbolic_z_val(6)=}")
+        print(symbol, cur_z, equilvalent_ops(cur_z, get_symbolic_z_val(6)))
+
+def find_replacement(ops, i):
+    prev_z_var = var_name("z", i-1)
+    good_vars = set(get_deps(prev_z_var, ops))
+
+    z_var = var_name("z", i)
+    target = get_symbolic_z_val(i)
+
+    these_vars = set(get_deps(z_var, ops)).difference(good_vars)
+    these_vars.add(z_var)
+    these_vars = {x for x in these_vars if not any(x.startswith(c) for c in "xy")}
+    valid_ops = set(ops).difference(good_vars)
+
+    for symbol1, symbol2 in itertools.product(these_vars, valid_ops):
+        newops = copy.copy(ops)
+        newops[symbol1], newops[symbol2] = newops[symbol2], newops[symbol1]
+        try:
+            new_z = get_symbolic_value_single(z_var, newops)
+        except RecursionError:
+            continue
+        vars = get_vars(new_z)
+        if max(var_deps(vars)) > i:
+            continue
+
+        cur_z = sub_symbolic_carry(new_z, max_sub=i)
+        if equilvalent_ops(cur_z, target):
+            return symbol1, symbol2 # print(symbol1, symbol2, cur_z)
+
+# ["z06", "vwr", "tqm", "z11", "kfs", "z16", "gfv", "hcm"]
+def p24b(fn):
+    _, ops = read24(fn)
+    swapped = tuple()
+    for i in range(1, 45):
+        z_var = var_name("z", i)
+        target = get_symbolic_z_val(i)
+        symbolic_z = get_symbolic_value_single(z_var, ops)
+        new_symbolic_z = sub_symbolic_carry(symbolic_z, max_sub=i)
+
+        if not equilvalent_ops(new_symbolic_z, target):
+            print(f"Fixing {z_var}")
+            swaps = find_replacement(ops, i)
+            swapped += swaps
+            x, y = swaps
+            print(f"Swapping {x} and {y}\n")
+            ops[x], ops[y] = ops[y], ops[x]
+
+    print(",".join(sorted(swapped)))
+    return
+
+
 if __name__ == "__main__":
     t0 = time.time()
-    p23b("data/day24.txt")
+    p24b("data/day24.txt")
     print(f"Time: {time.time() - t0}")
